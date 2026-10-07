@@ -1,0 +1,249 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Pantry Sign-In API",
+    "description": "DRAFT contract proposed by the frontend for review. The backend owns this file: regenerate it from the FastAPI app once the models match.\n\nPrivacy: visitors are identified only by phone number, first initial, and birth month/day. Never add name or email fields.",
+    "version": "0.1.0"
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "summary": "Health check",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Service is up",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/locations": {
+      "get": {
+        "summary": "List pantry locations",
+        "operationId": "list_locations_api_locations_get",
+        "security": [{ "HTTPBearer": [] }],
+        "responses": {
+          "200": {
+            "description": "All active pantry locations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/Location" }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sync": {
+      "post": {
+        "summary": "Upload visits recorded offline",
+        "description": "Idempotent: each visit carries a client-generated UUID. Re-sending a visit that was already stored returns status \"duplicate\" instead of creating it again, so the client can safely retry after a dropped connection.",
+        "operationId": "sync_visits_api_sync_post",
+        "security": [{ "HTTPBearer": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SyncRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Per-visit results, in the same order as the request",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/SyncResponse" }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "HTTPBearer": { "type": "http", "scheme": "bearer" }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "const": "ok", "title": "Status" }
+        },
+        "required": ["status"],
+        "title": "Health"
+      },
+      "Location": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
+          "address": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Address"
+          }
+        },
+        "required": ["id", "name"],
+        "title": "Location"
+      },
+      "VisitIn": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Generated on the device when the visit is recorded; used for idempotent retries."
+          },
+          "location_id": { "type": "string", "title": "Location Id" },
+          "phone": {
+            "type": "string",
+            "pattern": "^\\+?[0-9]{10,15}$",
+            "title": "Phone",
+            "description": "Digits only, optional leading +."
+          },
+          "first_initial": {
+            "type": "string",
+            "pattern": "^[A-Za-z]$",
+            "title": "First Initial"
+          },
+          "birth_month": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 12,
+            "title": "Birth Month"
+          },
+          "birth_day": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 31,
+            "title": "Birth Day"
+          },
+          "visited_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Visited At",
+            "description": "Device time when the visitor was signed in (not upload time)."
+          }
+        },
+        "required": [
+          "id",
+          "location_id",
+          "phone",
+          "first_initial",
+          "birth_month",
+          "birth_day",
+          "visited_at"
+        ],
+        "title": "VisitIn"
+      },
+      "SyncRequest": {
+        "type": "object",
+        "properties": {
+          "visits": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/VisitIn" },
+            "title": "Visits"
+          }
+        },
+        "required": ["visits"],
+        "title": "SyncRequest"
+      },
+      "SyncResult": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "status": {
+            "type": "string",
+            "enum": ["created", "duplicate", "rejected"],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
+            "title": "Error"
+          }
+        },
+        "required": ["id", "status"],
+        "title": "SyncResult"
+      },
+      "SyncResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/SyncResult" },
+            "title": "Results"
+          }
+        },
+        "required": ["results"],
+        "title": "SyncResponse"
+      },
+      "ErrorDetail": {
+        "type": "object",
+        "properties": {
+          "detail": { "type": "string", "title": "Detail" }
+        },
+        "required": ["detail"],
+        "title": "ErrorDetail"
+      },
+      "ValidationError": {
+        "type": "object",
+        "properties": {
+          "loc": {
+            "type": "array",
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+            "title": "Location"
+          },
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
+        },
+        "required": ["loc", "msg", "type"],
+        "title": "ValidationError"
+      },
+      "HTTPValidationError": {
+        "type": "object",
+        "properties": {
+          "detail": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "title": "Detail"
+          }
+        },
+        "title": "HTTPValidationError"
+      }
+    }
+  }
+}
