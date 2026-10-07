@@ -1,0 +1,102 @@
+:root {
+  --brand: #2f6b3a;
+  --text: #1c1f1d;
+  --muted: #5d655f;
+  --bg: #f6f7f5;
+  --surface: #ffffff;
+  --ok: #2f6b3a;
+  --warn: #a14a00;
+  --border: #dde2dc;
+
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
+
+.app-header {
+  background: var(--brand);
+  color: #fff;
+  padding: 12px 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.app-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.app-header-meta {
+  font-size: 0.9rem;
+  opacity: 0.95;
+}
+
+.status-pill {
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: #fff;
+}
+
+.status-pill.is-online {
+  color: var(--ok);
+}
+
+.status-pill.is-offline {
+  color: var(--warn);
+}
+
+.health-unreachable {
+  font-weight: 600;
+}
+
+.app-nav {
+  display: flex;
+  gap: 16px;
+}
+
+.app-nav a {
+  color: #fff;
+  text-decoration: none;
+  padding: 6px 0;
+  border-bottom: 2px solid transparent;
+}
+
+.app-nav a.active {
+  border-bottom-color: #fff;
+  font-weight: 600;
+}
+
+.app-main {
+  padding: 16px;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 8px 0;
+}
+
+p {
+  color: var(--muted);
+}
