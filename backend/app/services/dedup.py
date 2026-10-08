@@ -66,7 +66,9 @@ def run_dedup(db: Session) -> schemas.DedupSummary:
     # here, then finds nothing left to do.
     db.execute(text("SELECT pg_advisory_xact_lock(:lock_id)"), {"lock_id": DEDUP_LOCK_ID})
 
-    summary = schemas.DedupSummary()
+    summary = schemas.DedupSummary(
+        phone_visits_assigned=0, no_phone_visits_merged=0, households_created=0, sent_to_review=0
+    )
     _assign_phone_visits(db, summary)
     _assign_no_phone_visits(db, summary, settings.dedup_merge_threshold, settings.dedup_review_threshold)
     db.commit()

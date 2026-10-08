@@ -2,39 +2,29 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Pantry Sign-In API",
-    "description": "DRAFT contract proposed by the frontend for review. The backend owns this file: regenerate it from the FastAPI app once the models match.\n\nPrivacy: visitors are identified only by phone number, first initial, and birth month/day. Never add name or email fields.",
+    "description": "Check-in API for pantry sites. The backend owns this contract; `openapi.json` at the repo root is generated from this app.\n\nPrivacy: a visitor is identified only by a phone number (stored as an HMAC hash, never the number itself) or, without a phone, by first initial, birth month/year and household size. Never add name or email fields.",
     "version": "0.1.0"
   },
   "paths": {
-    "/api/health": {
-      "get": {
-        "summary": "Health check",
-        "operationId": "health_api_health_get",
-        "responses": {
-          "200": {
-            "description": "Service is up",
-            "content": {
-              "application/json": {
-                "schema": { "$ref": "#/components/schemas/Health" }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/locations": {
       "get": {
+        "tags": [
+          "locations"
+        ],
         "summary": "List pantry locations",
+        "description": "All active pantry locations, by name.",
         "operationId": "list_locations_api_locations_get",
-        "security": [{ "HTTPBearer": [] }],
         "responses": {
           "200": {
-            "description": "All active pantry locations",
+            "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Location"
+                  },
                   "type": "array",
-                  "items": { "$ref": "#/components/schemas/Location" }
+                  "title": "Response List Locations Api Locations Get"
                 }
               }
             }
@@ -43,33 +33,46 @@
             "description": "Missing or invalid token",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/api/sync": {
       "post": {
+        "tags": [
+          "sync"
+        ],
         "summary": "Upload visits recorded offline",
-        "description": "Idempotent: each visit carries a client-generated UUID. Re-sending a visit that was already stored returns status \"duplicate\" instead of creating it again, so the client can safely retry after a dropped connection.",
+        "description": "Store a batch of visits.\n\nIdempotent: each visit carries a UUID generated on the device. Re-sending a\nvisit that is already stored returns `duplicate` instead of creating it\nagain, so the client can safely retry after a dropped connection.\n\nA visit that fails validation comes back as `rejected` with the reason in\n`error`; the other visits in the batch are still stored.",
         "operationId": "sync_visits_api_sync_post",
-        "security": [{ "HTTPBearer": [] }],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
-              "schema": { "$ref": "#/components/schemas/SyncRequest" }
+              "schema": {
+                "$ref": "#/components/schemas/SyncRequest"
+              }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
-            "description": "Per-visit results, in the same order as the request",
+            "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/SyncResponse" }
+                "schema": {
+                  "$ref": "#/components/schemas/SyncResponse"
+                }
               }
             }
           },
@@ -77,7 +80,9 @@
             "description": "Missing or invalid token",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/ErrorDetail" }
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
               }
             }
           },
@@ -85,7 +90,150 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/dedup/run": {
+      "post": {
+        "tags": [
+          "dedup"
+        ],
+        "summary": "Run the dedup job",
+        "description": "Assign visits that have no household yet, and report what was done.\n\nPhone visits with the same number share a household. No-phone visits are\nscored against known households: a strong match joins, a near match waits\nin the review list, anything else becomes a new household. Anonymous visits\nare left alone. Visits themselves are never changed or deleted.",
+        "operationId": "run_dedup_job_api_dedup_run_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DedupSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/reviews": {
+      "get": {
+        "tags": [
+          "dedup"
+        ],
+        "summary": "List matches waiting for review",
+        "description": "No-phone visits that might belong to an existing household, oldest first.",
+        "operationId": "list_reviews_api_reviews_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewItem"
+                  },
+                  "type": "array",
+                  "title": "Response List Reviews Api Reviews Get"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/metrics": {
+      "get": {
+        "tags": [
+          "metrics"
+        ],
+        "summary": "Dashboard counts",
+        "description": "Counts for the coalition dashboard (MOC-17).\n\nHouseholds only exist once the dedup job has run, so `unique_households`\nand `pending_review` change when it does. Anonymous visits and visits\nwaiting for review count as visits but not as households.",
+        "operationId": "get_metrics_api_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Metrics"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorDetail"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Health check",
+        "operationId": "health_api_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
               }
             }
           }
@@ -94,33 +242,8 @@
     }
   },
   "components": {
-    "securitySchemes": {
-      "HTTPBearer": { "type": "http", "scheme": "bearer" }
-    },
     "schemas": {
-      "Health": {
-        "type": "object",
-        "properties": {
-          "status": { "type": "string", "const": "ok", "title": "Status" }
-        },
-        "required": ["status"],
-        "title": "Health"
-      },
-      "Location": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "title": "Id" },
-          "name": { "type": "string", "title": "Name" },
-          "address": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Address"
-          }
-        },
-        "required": ["id", "name"],
-        "title": "Location"
-      },
-      "VisitIn": {
-        "type": "object",
+      "AnonymousVisit": {
         "properties": {
           "id": {
             "type": "string",
@@ -128,121 +251,587 @@
             "title": "Id",
             "description": "Generated on the device when the visit is recorded; used for idempotent retries."
           },
-          "location_id": { "type": "string", "title": "Location Id" },
-          "phone": {
+          "location_id": {
             "type": "string",
-            "pattern": "^\\+?[0-9]{10,15}$",
-            "title": "Phone",
-            "description": "Digits only, optional leading +."
-          },
-          "first_initial": {
-            "type": "string",
-            "pattern": "^[A-Za-z]$",
-            "title": "First Initial"
-          },
-          "birth_month": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 12,
-            "title": "Birth Month"
-          },
-          "birth_day": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 31,
-            "title": "Birth Day"
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Location Id"
           },
           "visited_at": {
             "type": "string",
             "format": "date-time",
             "title": "Visited At",
-            "description": "Device time when the visitor was signed in (not upload time)."
+            "description": "Device time when the visitor was signed in (not upload time). Must include a UTC offset."
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "es"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "method": {
+            "type": "string",
+            "const": "anonymous",
+            "title": "Method"
           }
         },
+        "additionalProperties": false,
+        "type": "object",
         "required": [
           "id",
           "location_id",
-          "phone",
-          "first_initial",
-          "birth_month",
-          "birth_day",
-          "visited_at"
+          "visited_at",
+          "method"
         ],
-        "title": "VisitIn"
+        "title": "AnonymousVisit",
+        "description": "\"Prefer not to say\": a visit with no identifying details at all."
       },
-      "SyncRequest": {
-        "type": "object",
+      "DedupSummary": {
         "properties": {
-          "visits": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/VisitIn" },
-            "title": "Visits"
-          }
-        },
-        "required": ["visits"],
-        "title": "SyncRequest"
-      },
-      "SyncResult": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string", "format": "uuid", "title": "Id" },
-          "status": {
-            "type": "string",
-            "enum": ["created", "duplicate", "rejected"],
-            "title": "Status"
+          "phone_visits_assigned": {
+            "type": "integer",
+            "title": "Phone Visits Assigned"
           },
-          "error": {
-            "anyOf": [{ "type": "string" }, { "type": "null" }],
-            "title": "Error"
+          "no_phone_visits_merged": {
+            "type": "integer",
+            "title": "No Phone Visits Merged"
+          },
+          "households_created": {
+            "type": "integer",
+            "title": "Households Created"
+          },
+          "sent_to_review": {
+            "type": "integer",
+            "title": "Sent To Review"
           }
         },
-        "required": ["id", "status"],
-        "title": "SyncResult"
-      },
-      "SyncResponse": {
         "type": "object",
-        "properties": {
-          "results": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/SyncResult" },
-            "title": "Results"
-          }
-        },
-        "required": ["results"],
-        "title": "SyncResponse"
+        "required": [
+          "phone_visits_assigned",
+          "no_phone_visits_merged",
+          "households_created",
+          "sent_to_review"
+        ],
+        "title": "DedupSummary",
+        "description": "What one run of the dedup job did."
       },
       "ErrorDetail": {
-        "type": "object",
-        "properties": {
-          "detail": { "type": "string", "title": "Detail" }
-        },
-        "required": ["detail"],
-        "title": "ErrorDetail"
-      },
-      "ValidationError": {
-        "type": "object",
-        "properties": {
-          "loc": {
-            "type": "array",
-            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
-            "title": "Location"
-          },
-          "msg": { "type": "string", "title": "Message" },
-          "type": { "type": "string", "title": "Error Type" }
-        },
-        "required": ["loc", "msg", "type"],
-        "title": "ValidationError"
-      },
-      "HTTPValidationError": {
-        "type": "object",
         "properties": {
           "detail": {
-            "type": "array",
-            "items": { "$ref": "#/components/schemas/ValidationError" },
+            "type": "string",
             "title": "Detail"
           }
         },
+        "type": "object",
+        "required": [
+          "detail"
+        ],
+        "title": "ErrorDetail"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
         "title": "HTTPValidationError"
+      },
+      "Health": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "const": "ok",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "Health"
+      },
+      "Location": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "address": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Location"
+      },
+      "Metrics": {
+        "properties": {
+          "unique_households": {
+            "type": "integer",
+            "title": "Unique Households",
+            "description": "Households the dedup job has identified."
+          },
+          "total_visits": {
+            "type": "integer",
+            "title": "Total Visits",
+            "description": "Every stored check-in, of any kind."
+          },
+          "pending_review": {
+            "type": "integer",
+            "title": "Pending Review",
+            "description": "No-phone visits waiting for a person to confirm a match."
+          },
+          "anonymous_visits": {
+            "type": "integer",
+            "title": "Anonymous Visits",
+            "description": "Check-ins with no identifying details. Never counted as households."
+          },
+          "unprocessed_visits": {
+            "type": "integer",
+            "title": "Unprocessed Visits",
+            "description": "Visits synced since the dedup job last ran."
+          }
+        },
+        "type": "object",
+        "required": [
+          "unique_households",
+          "total_visits",
+          "pending_review",
+          "anonymous_visits",
+          "unprocessed_visits"
+        ],
+        "title": "Metrics"
+      },
+      "NoPhoneVisit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Generated on the device when the visit is recorded; used for idempotent retries."
+          },
+          "location_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Location Id"
+          },
+          "visited_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Visited At",
+            "description": "Device time when the visitor was signed in (not upload time). Must include a UTC offset."
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "es"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "method": {
+            "type": "string",
+            "const": "no_phone",
+            "title": "Method"
+          },
+          "first_initial": {
+            "type": "string",
+            "maxLength": 1,
+            "minLength": 1,
+            "title": "First Initial",
+            "description": "One letter. Stored as a capital without accents."
+          },
+          "birth_month": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Birth Month"
+          },
+          "birth_year": {
+            "type": "integer",
+            "minimum": 1900.0,
+            "title": "Birth Year"
+          },
+          "household_size": {
+            "type": "integer",
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Household Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "location_id",
+          "visited_at",
+          "method",
+          "first_initial",
+          "birth_month",
+          "birth_year",
+          "household_size"
+        ],
+        "title": "NoPhoneVisit",
+        "description": "Check-in without a phone: first initial, birth month and year, household size."
+      },
+      "PhoneVisit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "Generated on the device when the visit is recorded; used for idempotent retries."
+          },
+          "location_id": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Location Id"
+          },
+          "visited_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Visited At",
+            "description": "Device time when the visitor was signed in (not upload time). Must include a UTC offset."
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "en",
+                  "es"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "method": {
+            "type": "string",
+            "const": "phone",
+            "title": "Method"
+          },
+          "phone": {
+            "type": "string",
+            "format": "password",
+            "title": "Phone",
+            "description": "10 to 15 digits, optional leading +. Spaces and punctuation are ignored, and 10 digits without a + are read as a US number.",
+            "writeOnly": true
+          },
+          "household_size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 30.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Household Size"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "location_id",
+          "visited_at",
+          "method",
+          "phone"
+        ],
+        "title": "PhoneVisit",
+        "description": "Check-in with a phone number."
+      },
+      "ReviewHousehold": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "first_initial": {
+            "type": "string",
+            "title": "First Initial"
+          },
+          "birth_month": {
+            "type": "integer",
+            "title": "Birth Month"
+          },
+          "birth_year": {
+            "type": "integer",
+            "title": "Birth Year"
+          },
+          "household_size": {
+            "type": "integer",
+            "title": "Household Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "first_initial",
+          "birth_month",
+          "birth_year",
+          "household_size"
+        ],
+        "title": "ReviewHousehold"
+      },
+      "ReviewItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "score": {
+            "type": "number",
+            "title": "Score"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "visit": {
+            "$ref": "#/components/schemas/ReviewVisit"
+          },
+          "candidate_household": {
+            "$ref": "#/components/schemas/ReviewHousehold"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "score",
+          "created_at",
+          "visit",
+          "candidate_household"
+        ],
+        "title": "ReviewItem",
+        "description": "A no-phone visit that might be the candidate household, with how strongly it matched."
+      },
+      "ReviewVisit": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "location_id": {
+            "type": "string",
+            "title": "Location Id"
+          },
+          "visited_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Visited At"
+          },
+          "first_initial": {
+            "type": "string",
+            "title": "First Initial"
+          },
+          "birth_month": {
+            "type": "integer",
+            "title": "Birth Month"
+          },
+          "birth_year": {
+            "type": "integer",
+            "title": "Birth Year"
+          },
+          "household_size": {
+            "type": "integer",
+            "title": "Household Size"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "location_id",
+          "visited_at",
+          "first_initial",
+          "birth_month",
+          "birth_year",
+          "household_size"
+        ],
+        "title": "ReviewVisit"
+      },
+      "SyncRequest": {
+        "properties": {
+          "visits": {
+            "items": {
+              "$ref": "#/components/schemas/VisitIn"
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Visits"
+          }
+        },
+        "type": "object",
+        "required": [
+          "visits"
+        ],
+        "title": "SyncRequest"
+      },
+      "SyncResponse": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/SyncResult"
+            },
+            "type": "array",
+            "title": "Results",
+            "description": "One result per visit, in the same order as the request."
+          }
+        },
+        "type": "object",
+        "required": [
+          "results"
+        ],
+        "title": "SyncResponse"
+      },
+      "SyncResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "created",
+              "duplicate",
+              "rejected"
+            ],
+            "title": "Status"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status"
+        ],
+        "title": "SyncResult"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VisitIn": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/PhoneVisit"
+          },
+          {
+            "$ref": "#/components/schemas/NoPhoneVisit"
+          },
+          {
+            "$ref": "#/components/schemas/AnonymousVisit"
+          }
+        ],
+        "discriminator": {
+          "propertyName": "method",
+          "mapping": {
+            "anonymous": "#/components/schemas/AnonymousVisit",
+            "no_phone": "#/components/schemas/NoPhoneVisit",
+            "phone": "#/components/schemas/PhoneVisit"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
       }
     }
   }

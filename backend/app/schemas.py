@@ -24,7 +24,7 @@ VISIT_METHODS = ("phone", "no_phone", "anonymous")
 
 
 class Health(BaseModel):
-    status: Literal["ok"] = "ok"
+    status: Literal["ok"]
 
 
 class ErrorDetail(BaseModel):
@@ -187,10 +187,10 @@ class SyncResponse(BaseModel):
 class DedupSummary(BaseModel):
     """What one run of the dedup job did."""
 
-    phone_visits_assigned: int = 0
-    no_phone_visits_merged: int = 0
-    households_created: int = 0
-    sent_to_review: int = 0
+    phone_visits_assigned: int
+    no_phone_visits_merged: int
+    households_created: int
+    sent_to_review: int
 
 
 class ReviewVisit(BaseModel):

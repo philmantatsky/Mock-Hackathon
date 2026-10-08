@@ -38,4 +38,4 @@ app.include_router(metrics.router)
 @app.get("/api/health", response_model=schemas.Health, summary="Health check", tags=["health"])
 def health(db: Session = Depends(get_db)) -> schemas.Health:
     db.execute(text("SELECT 1"))
-    return schemas.Health()
+    return schemas.Health(status="ok")
