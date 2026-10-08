@@ -5,6 +5,7 @@ the rejected input back. These helpers say where the problem is and which rule
 was broken, without the submitted value.
 """
 
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import Request
@@ -14,7 +15,7 @@ from fastapi.responses import JSONResponse
 METHOD_RULE = "method must be 'phone', 'no_phone' or 'anonymous'"
 
 
-def safe_message(error: dict[str, Any]) -> str:
+def safe_message(error: Mapping[str, Any]) -> str:
     # Pydantic quotes the unrecognised value in this one message; all the
     # others only describe the rule.
     if error["type"].startswith("union_tag"):

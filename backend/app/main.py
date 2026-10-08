@@ -8,7 +8,7 @@ from app import schemas
 from app.config import get_settings
 from app.db import get_db
 from app.errors import validation_error_without_inputs
-from app.routers import locations
+from app.routers import locations, visits
 
 app = FastAPI(
     title="Pantry Sign-In API",
@@ -30,6 +30,7 @@ app.add_middleware(
 )
 app.add_exception_handler(RequestValidationError, validation_error_without_inputs)
 app.include_router(locations.router)
+app.include_router(visits.router)
 
 
 @app.get("/api/health", response_model=schemas.Health, summary="Health check", tags=["health"])
