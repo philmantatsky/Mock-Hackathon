@@ -223,3 +223,16 @@ class ReviewItem(BaseModel):
     created_at: datetime
     visit: ReviewVisit
     candidate_household: ReviewHousehold
+
+
+# --- Dashboard --------------------------------------------------------------
+
+
+class Metrics(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    unique_households: int = Field(description="Households the dedup job has identified.")
+    total_visits: int = Field(description="Every stored check-in, of any kind.")
+    pending_review: int = Field(description="No-phone visits waiting for a person to confirm a match.")
+    anonymous_visits: int = Field(description="Check-ins with no identifying details. Never counted as households.")
+    unprocessed_visits: int = Field(description="Visits synced since the dedup job last ran.")
