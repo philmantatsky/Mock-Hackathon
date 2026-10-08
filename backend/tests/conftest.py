@@ -17,9 +17,10 @@ import pytest  # noqa: E402
 from alembic import command  # noqa: E402
 from alembic.config import Config  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from pydantic import SecretStr  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 
-from app.config import BACKEND_DIR  # noqa: E402
+from app.config import BACKEND_DIR, get_settings  # noqa: E402
 from app.db import SessionLocal, engine  # noqa: E402
 from app.main import app  # noqa: E402
 
@@ -51,3 +52,10 @@ def client():
 def db():
     with SessionLocal() as session:
         yield session
+
+
+@pytest.fixture
+def api_token(monkeypatch):
+    """Switch the Bearer check on for one test and return the accepted token."""
+    monkeypatch.setattr(get_settings(), "api_token", SecretStr("test-token"))
+    return "test-token"
