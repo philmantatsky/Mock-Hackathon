@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router'
 import { HealthCheck } from './HealthCheck'
 import { OnlineIndicator } from './OnlineIndicator'
+import { PendingCount } from './PendingCount'
 
 export function Header() {
   return (
@@ -10,8 +11,7 @@ export function Header() {
         <OnlineIndicator />
       </div>
       <div className="app-header-row app-header-meta">
-        {/* Placeholder until the Dexie outbox exists. */}
-        <span>Pending: 0</span>
+        <PendingCount />
         <HealthCheck />
       </div>
       <nav className="app-nav">
