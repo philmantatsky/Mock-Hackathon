@@ -1,7 +1,7 @@
 import unicodedata
 import uuid
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import (
@@ -179,3 +179,47 @@ class SyncResult(BaseModel):
 
 class SyncResponse(BaseModel):
     results: list[SyncResult] = Field(description="One result per visit, in the same order as the request.")
+
+
+# --- Dedup job and review list ----------------------------------------------
+
+
+class DedupSummary(BaseModel):
+    """What one run of the dedup job did."""
+
+    phone_visits_assigned: int = 0
+    no_phone_visits_merged: int = 0
+    households_created: int = 0
+    sent_to_review: int = 0
+
+
+class ReviewVisit(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    location_id: str
+    visited_at: datetime
+    first_initial: str
+    birth_month: int
+    birth_year: int
+    household_size: int
+
+
+class ReviewHousehold(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    first_initial: str
+    birth_month: int
+    birth_year: int
+    household_size: int
+
+
+class ReviewItem(BaseModel):
+    """A no-phone visit that might be the candidate household, with how strongly it matched."""
+
+    id: uuid.UUID
+    score: float
+    created_at: datetime
+    visit: ReviewVisit
+    candidate_household: ReviewHousehold
